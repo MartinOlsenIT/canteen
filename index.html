@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kantina - Bestilling</title>
+    <link rel="stylesheet" href="styles/styles.css">
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Kantina Meny</h1>
+            <div id="auth-section">
+                <button id="login-btn">Logg inn med Google</button>
+                <p id="user-info"></p>
+            </div>
+        </header>
+
+        <main>
+            <section id="menu-section">
+                <h3>Meny</h3>
+                <div id="menu-list">Laster meny...</div>
+            </section>
+
+            <section id="cart-section">
+                <h3>Din Handlekorg</h3>
+                <ul id="cart-items"></ul>
+                <p>Total: <span id="total-price">0</span> kr</p>
+                <button id="checkout-btn" disabled>Fullfør bestilling</button>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="scripts/app.js"></script>
+</body>
+</html>
