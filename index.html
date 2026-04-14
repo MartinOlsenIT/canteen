@@ -2,34 +2,51 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Kantine Meny</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kantina - Velkommen</title>
     <link rel="stylesheet" href="styles/global.css">
     <link rel="stylesheet" href="styles/index.css">
 </head>
 <body>
 
-    <div class="container">
-        <header>
-            <h1>Kantina Meny</h1>
-            <div id="auth-section">
-                <button id="login-btn">Logg inn med Google</button>
-                <p id="user-info"></p>
+    <div id="login-screen" style="display: none;">
+        <div class="container" style="text-align: center; padding-top: 100px;">
+            <div class="card" style="padding: 50px; max-width: 400px; margin: auto;">
+                <h1>🥗 Kantina</h1>
+                <p>Logg inn med skolekontoen din for å se menyen og bestille mat.</p>
+                <br>
+                <button class="btn-primary" id="login-btn-google" style="font-size: 1.2em; width: 100%;">
+                    Logg inn med Google
+                </button>
             </div>
-        </header>
+        </div>
+    </div>
 
-        <main>
-            <section id="menu-section">
-                <h3>Meny</h3>
-                <div id="menu-list">Laster meny...</div>
-            </section>
+    <div id="main-content" style="display: none;">
+        <div class="container">
+            <header>
+                <div id="logo">
+                    <h1>🥗 Kantina</h1>
+                </div>
+                <div id="user-info">
+                    </div>
+            </header>
 
-            <section id="cart-section">
-                <h3>Din Handlekorg</h3>
-                <ul id="cart-items"></ul>
-                <p>Total: <span id="total-price">0</span> kr</p>
-                <button id="checkout-btn" disabled>Fullfør bestilling</button>
-            </section>
-        </main>
+            <div class="menu-grid" id="menu-list">
+                </div>
+
+            <div class="cart-container">
+                <h3>🛒 Din Handlekorg</h3>
+                <div id="cart-items">
+                    <p>Korgen er tom...</p>
+                </div>
+                <hr>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h4>Total: <span id="total-price">0</span> kr</h4>
+                    <button class="btn-primary" id="checkout-btn">Fullfør Bestilling</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="scripts/app.js"></script>

@@ -1,47 +1,71 @@
-import { db, auth } from './firebase-config.js';
-import { collection, onSnapshot, addDoc, updateDoc, doc, getDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { db, auth, provider } from './firebase-config.js';
+import { collection, onSnapshot, addDoc, updateDoc, doc, getDoc, setDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { onAuthStateChanged, signOut, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-let cart = [];
-let currentUser = null;
-
+const loginScreen = document.getElementById('login-screen');
+const mainContent = document.getElementById('main-content');
+const loginBtn = document.getElementById('login-btn-google');
+const userInfo = document.getElementById('user-info');
 const menuList = document.getElementById('menu-list');
 const cartItems = document.getElementById('cart-items');
 const totalPriceEl = document.getElementById('total-price');
 const checkoutBtn = document.getElementById('checkout-btn');
-const userInfo = document.getElementById('user-info');
 
-// Finn logg-inn knappen i HTML-en din (pass på at den har id="login-btn")
-const loginBtn = document.getElementById('login-btn');
+let cart = [];
+let currentUser = null;
 
+// --- 1. HÅNDTERE INNLOGGINGSTILSTAND ---
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
+        
+        // Sjekk/Opprett bruker i Firestore
         const userRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userRef);
+        
+        if (!userSnap.exists()) {
+            await setDoc(userRef, {
+                navn: user.displayName,
+                epost: user.email,
+                rolle: "elev",
+                opprettet: serverTimestamp()
+            });
+        }
+
         const isAdmin = userSnap.exists() && userSnap.data().rolle === "admin";
 
-        // SKJUL logg-inn knappen hvis bruker er logget på
-        if (loginBtn) loginBtn.style.display = 'none';
+        // Vis innhold, skjul login
+        loginScreen.style.display = 'none';
+        mainContent.style.display = 'block';
 
+        // Oppdater header
         userInfo.innerHTML = `
-            <span style="margin-right:15px;">Logget inn som: <strong>${user.displayName}</strong></span>
-            ${isAdmin ? '<button class="btn-admin" id="go-admin">Gå til Admin-side</button>' : ''}
+            <span style="margin-right:15px;">Hei, <strong>${user.displayName}</strong></span>
+            ${isAdmin ? '<button class="btn-admin" id="go-admin">Admin</button>' : ''}
             <button class="btn-danger" id="logout-btn">Logg ut</button>
         `;
 
         if (isAdmin) document.getElementById('go-admin').onclick = () => window.location.href = 'admin.html';
-        document.getElementById('logout-btn').onclick = () => signOut(auth).then(() => location.reload());
-        checkoutBtn.disabled = false;
+        document.getElementById('logout-btn').onclick = () => signOut(auth);
+        
     } else {
-        // VIS logg-inn knappen hvis ingen er logget på
-        if (loginBtn) loginBtn.style.display = 'block';
-        userInfo.innerHTML = '';
-        checkoutBtn.disabled = true;
+        // Skjul innhold, vis login
+        loginScreen.style.display = 'block';
+        mainContent.style.display = 'none';
+        currentUser = null;
     }
 });
 
-// Resten av app.js koden (onSnapshot for meny og checkout) forblir lik som før...
+// --- 2. LOGG INN FUNKSJON ---
+loginBtn.onclick = async () => {
+    try {
+        await signInWithPopup(auth, provider);
+    } catch (err) {
+        alert("Innloggingsfeil: " + err.message);
+    }
+};
+
+// --- 3. MENY OG BESTILLING (Samme som før) ---
 onSnapshot(collection(db, "products"), (snapshot) => {
     menuList.innerHTML = '';
     snapshot.forEach((docSnap) => {
@@ -58,7 +82,7 @@ onSnapshot(collection(db, "products"), (snapshot) => {
                 </div>
                 <button class="btn-primary add-btn" ${!isAvailable ? 'disabled' : ''} 
                     data-id="${id}" data-name="${item.name}" data-price="${item.price}">
-                    ${isAvailable ? 'Legg i korg' : 'Ikke tilgjengelig'}
+                    ${isAvailable ? 'Legg i korg' : 'Utsolgt'}
                 </button>
             </div>
         `;
