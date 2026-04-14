@@ -2,27 +2,32 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Panel</title>
+    <title>Admin Panel - Kantina</title>
     <link rel="stylesheet" href="styles/global.css">
     <link rel="stylesheet" href="styles/admin.css">
 </head>
 <body>
     <div class="container">
-        <div style="display:flex; justify-content:space-between;">
-            <h1>Admin Panel</h1>
-            <button onclick="window.location.href='index.html'">Tilbake til meny</button>
+        <header>
+            <h1>⚙️ Admin Panel</h1>
+            <button class="btn-primary" onclick="window.location.href='index.html'">Tilbake til Meny</button>
+        </header>
+
+        <div class="admin-form">
+            <h3>➕ Legg til ny vare</h3>
+            <input type="text" id="name" placeholder="Navn på matvare">
+            <input type="number" id="price" placeholder="Pris i kr">
+            <input type="number" id="stock" placeholder="Antall på lager">
+            <button class="btn-primary" id="add-btn" style="width:100%;">Lagre Produkt</button>
         </div>
 
-        <div style="background:#eee; padding:20px; border-radius:10px; margin-bottom:20px;">
-            <h3>Legg til ny mat</h3>
-            <input type="text" id="name" placeholder="Navn på mat">
-            <input type="number" id="price" placeholder="Pris">
-            <input type="number" id="stock" placeholder="Lagerbeholdning">
-            <button id="add-btn" style="background:green; color:white; margin-top:10px; width:100%;">Lagre vare</button>
+        <div class="admin-form">
+            <h3>🍴 Administrer Meny (Fjern varer)</h3>
+            <div id="admin-menu-list">Laster meny...</div>
         </div>
 
-        <h3>Aktive bestillinger</h3>
-        <div id="orders-list"></div>
+        <h2>📦 Aktive Bestillinger</h2>
+        <div id="orders-list">Laster bestillinger...</div>
     </div>
 
     <script type="module">
@@ -30,48 +35,70 @@
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { collection, addDoc, onSnapshot, query, orderBy, doc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // Sikkerhetssjekk
         onAuthStateChanged(auth, async (user) => {
-            if (!user) return window.location.href = 'login.html';
+            if (!user) window.location.href = 'login.html';
             const userSnap = await getDoc(doc(db, "users", user.uid));
-            if (!userSnap.exists() || userSnap.data().rolle !== 'admin') {
-                alert("Ingen adgang!");
-                window.location.href = 'index.html';
-            }
+            if (!userSnap.exists() || userSnap.data().rolle !== 'admin') window.location.href = 'index.html';
         });
 
-        // Legg til mat
+        // Legg til ny vare
         document.getElementById('add-btn').onclick = async () => {
             const name = document.getElementById('name').value;
             const price = Number(document.getElementById('price').value);
             const stock = Number(document.getElementById('stock').value);
-            
             if (name && price) {
                 await addDoc(collection(db, "products"), { name, price, stock });
-                alert("Varen er lagt til!");
+                alert("Vare lagt til!");
                 document.getElementById('name').value = '';
+                document.getElementById('price').value = '';
+                document.getElementById('stock').value = '';
             }
         };
 
-        // Vis ordre
-        const q = query(collection(db, "orders"), orderBy("timestamp", "desc"));
-        onSnapshot(q, (snap) => {
+        // VIS MENYEN MED SLETTEMULIGHET
+        onSnapshot(collection(db, "products"), (snap) => {
+            const menuDiv = document.getElementById('admin-menu-list');
+            menuDiv.innerHTML = '';
+            snap.forEach(d => {
+                const item = d.data();
+                menuDiv.innerHTML += `
+                    <div class="order-card" style="border-left-color: #34495e;">
+                        <div>
+                            <strong>${item.name}</strong> - ${item.price} kr (Lager: ${item.stock})
+                        </div>
+                        <button class="btn-danger" onclick="deleteProduct('${d.id}')">Fjern fra meny</button>
+                    </div>
+                `;
+            });
+        });
+
+        // VIS BESTILLINGER
+        onSnapshot(query(collection(db, "orders"), orderBy("timestamp", "desc")), (snap) => {
             const list = document.getElementById('orders-list');
             list.innerHTML = '';
             snap.forEach(d => {
                 const o = d.data();
-                const div = document.createElement('div');
-                div.style = "border:1px solid #ccc; padding:10px; margin-bottom:10px; background:white;";
-                div.innerHTML = `
-                    <strong>${o.userName}</strong> har bestilt: ${o.items.map(i => i.name).join(", ")}
-                    <button onclick="deleteOrder('${d.id}')" style="background:red; float:right;">Ferdig</button>
+                list.innerHTML += `
+                    <div class="order-card">
+                        <div>
+                            <strong>${o.userName}</strong><br>
+                            <small>${o.items.map(i => i.name).join(", ")}</small>
+                        </div>
+                        <button class="btn-primary" onclick="deleteOrder('${d.id}')">Fullført</button>
+                    </div>
                 `;
-                list.appendChild(div);
             });
         });
 
-        window.deleteOrder = async (id) => {
-            await deleteDoc(doc(db, "orders", id));
+        // Funksjoner for å slette (koblet til window så de kan kalles fra HTML)
+        window.deleteProduct = async (id) => {
+            if(confirm("Er du sikker på at du vil fjerne denne varen fra menyen?")) {
+                await deleteDoc(doc(db, "products", id));
+            }
+        };
+
+        window.deleteOrder = async (id) => { 
+            await deleteDoc(doc(db, "orders", id)); 
         };
     </script>
 </body>

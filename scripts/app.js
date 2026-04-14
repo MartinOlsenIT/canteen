@@ -1,4 +1,4 @@
-import { db, auth, provider } from './firebase-config.js';
+import { db, auth } from './firebase-config.js';
 import { collection, onSnapshot, addDoc, updateDoc, doc, getDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
@@ -11,38 +11,37 @@ const totalPriceEl = document.getElementById('total-price');
 const checkoutBtn = document.getElementById('checkout-btn');
 const userInfo = document.getElementById('user-info');
 
-// Sjekk innlogging og rolle
+// Finn logg-inn knappen i HTML-en din (pass på at den har id="login-btn")
+const loginBtn = document.getElementById('login-btn');
+
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
         const userRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userRef);
+        const isAdmin = userSnap.exists() && userSnap.data().rolle === "admin";
 
-        let isAdmin = false;
-        if (userSnap.exists()) {
-            isAdmin = userSnap.data().rolle === "admin";
-        }
+        // SKJUL logg-inn knappen hvis bruker er logget på
+        if (loginBtn) loginBtn.style.display = 'none';
 
-        // Oppdater UI med navn og eventuelt admin-knapp
         userInfo.innerHTML = `
-            <p>Logget inn som: <strong>${user.displayName}</strong></p>
-            ${isAdmin ? '<button id="go-admin" style="background:orange; margin-right:10px;">Gå til Admin-side</button>' : ''}
-            <button id="logout-btn" style="background:#cc0000;">Logg ut</button>
+            <span style="margin-right:15px;">Logget inn som: <strong>${user.displayName}</strong></span>
+            ${isAdmin ? '<button class="btn-admin" id="go-admin">Gå til Admin-side</button>' : ''}
+            <button class="btn-danger" id="logout-btn">Logg ut</button>
         `;
 
-        // Knapp-eventer
-        if (isAdmin) {
-            document.getElementById('go-admin').onclick = () => window.location.href = 'admin.html';
-        }
+        if (isAdmin) document.getElementById('go-admin').onclick = () => window.location.href = 'admin.html';
         document.getElementById('logout-btn').onclick = () => signOut(auth).then(() => location.reload());
-        
         checkoutBtn.disabled = false;
     } else {
-        window.location.href = 'login.html';
+        // VIS logg-inn knappen hvis ingen er logget på
+        if (loginBtn) loginBtn.style.display = 'block';
+        userInfo.innerHTML = '';
+        checkoutBtn.disabled = true;
     }
 });
 
-// Hent menyen i sanntid
+// Resten av app.js koden (onSnapshot for meny og checkout) forblir lik som før...
 onSnapshot(collection(db, "products"), (snapshot) => {
     menuList.innerHTML = '';
     snapshot.forEach((docSnap) => {
@@ -50,18 +49,19 @@ onSnapshot(collection(db, "products"), (snapshot) => {
         const id = docSnap.id;
         const isAvailable = item.stock > 0;
 
-        const div = document.createElement('div');
-        div.className = 'menu-item';
-        div.innerHTML = `
-            <div>
-                <strong>${item.name}</strong> - ${item.price} kr <br>
-                <small>Lager: ${item.stock}</small>
+        menuList.innerHTML += `
+            <div class="card">
+                <div>
+                    <h3>${item.name}</h3>
+                    <p class="price-tag">${item.price} kr</p>
+                    <p class="stock-tag">${isAvailable ? `Lager: ${item.stock}` : '<span style="color:red;">Utsolgt</span>'}</p>
+                </div>
+                <button class="btn-primary add-btn" ${!isAvailable ? 'disabled' : ''} 
+                    data-id="${id}" data-name="${item.name}" data-price="${item.price}">
+                    ${isAvailable ? 'Legg i korg' : 'Ikke tilgjengelig'}
+                </button>
             </div>
-            <button class="add-btn" ${!isAvailable ? 'disabled' : ''} data-id="${id}" data-name="${item.name}" data-price="${item.price}">
-                ${isAvailable ? 'Legg til' : 'Utsolgt'}
-            </button>
         `;
-        menuList.appendChild(div);
     });
 
     document.querySelectorAll('.add-btn').forEach(btn => {
@@ -74,20 +74,22 @@ onSnapshot(collection(db, "products"), (snapshot) => {
 });
 
 function renderCart() {
-    cartItems.innerHTML = '';
-    let total = 0;
-    cart.forEach((item) => {
-        total += item.price;
-        const li = document.createElement('li');
-        li.innerText = `${item.name} - ${item.price} kr`;
-        cartItems.appendChild(li);
-    });
-    totalPriceEl.innerText = total;
+    if (cart.length === 0) {
+        cartItems.innerHTML = '<p>Korgen er tom...</p>';
+        totalPriceEl.innerText = '0';
+        return;
+    }
+    cartItems.innerHTML = cart.map(item => `
+        <div class="cart-item">
+            <span>${item.name}</span>
+            <span>${item.price} kr</span>
+        </div>
+    `).join('');
+    totalPriceEl.innerText = cart.reduce((sum, item) => sum + item.price, 0);
 }
 
 checkoutBtn.onclick = async () => {
-    if (cart.length === 0) return alert("Korgen er tom!");
-    
+    if (cart.length === 0) return;
     try {
         await addDoc(collection(db, "orders"), {
             userId: currentUser.uid,
@@ -98,16 +100,10 @@ checkoutBtn.onclick = async () => {
         });
 
         for (const item of cart) {
-            await updateDoc(doc(db, "products", item.id), {
-                stock: increment(-1)
-            });
+            await updateDoc(doc(db, "products", item.id), { stock: increment(-1) });
         }
-
-        alert("Takk for bestillingen!");
+        alert("Bestilling mottatt!");
         cart = [];
         renderCart();
-    } catch (err) {
-        console.error(err);
-        alert("Feil: " + err.message);
-    }
+    } catch (err) { alert("Feil: " + err.message); }
 };
